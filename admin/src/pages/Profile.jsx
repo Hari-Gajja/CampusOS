@@ -1,0 +1,105 @@
+import { useState } from 'react';
+import { useAuth } from '../hooks/useAuth';
+import api from '../services/api';
+import ErrorAlert from '../components/ErrorAlert';
+import { User, Mail, Save, CheckCircle2, ShieldCheck } from 'lucide-react';
+
+export default function Profile() {
+  const { user, updateUserProfile } = useAuth();
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState(null);
+  const [successMsg, setSuccessMsg] = useState('');
+
+  const [formData, setFormData] = useState({
+    name: user?.name || '',
+    email: user?.email || '',
+  });
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    try {
+      setSaving(true);
+      setError(null);
+      setSuccessMsg('');
+
+      const res = await api.put(`/users/${user?.id}`, {
+        name: formData.name,
+      });
+
+      if (res.data.user) {
+        updateUserProfile({ name: formData.name });
+      }
+      setSuccessMsg('Administrator profile updated successfully.');
+    } catch (err) {
+      setError(err.response?.data?.message || 'Failed to update profile.');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="max-w-3xl space-y-6">
+      <div>
+        <h1 className="text-2xl font-bold text-white">Administrator Profile</h1>
+        <p className="text-slate-400 text-sm mt-1">Manage system administrator identity details</p>
+      </div>
+
+      {error && <ErrorAlert message={error} />}
+
+      {successMsg && (
+        <div className="p-4 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-300 text-sm flex items-center gap-2">
+          <CheckCircle2 className="w-5 h-5 text-emerald-400 shrink-0" />
+          <span>{successMsg}</span>
+        </div>
+      )}
+
+      <div className="glass-panel p-8 rounded-3xl border border-slate-800 space-y-6">
+        <form onSubmit={handleSubmit} className="space-y-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+            <div>
+              <label className="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-2">
+                Administrator Name
+              </label>
+              <div className="relative">
+                <User className="w-5 h-5 text-slate-500 absolute left-3.5 top-1/2 -translate-y-1/2" />
+                <input
+                  type="text"
+                  value={formData.name}
+                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                  required
+                  className="w-full pl-11 pr-4 py-3 rounded-xl bg-slate-900 border border-slate-800 text-white text-sm focus:outline-none focus:border-rose-500"
+                />
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-2">
+                Administrator Email (Read-Only)
+              </label>
+              <div className="relative">
+                <Mail className="w-5 h-5 text-slate-500 absolute left-3.5 top-1/2 -translate-y-1/2" />
+                <input
+                  type="email"
+                  value={formData.email}
+                  disabled
+                  className="w-full pl-11 pr-4 py-3 rounded-xl bg-slate-900/50 border border-slate-800 text-slate-400 text-sm cursor-not-allowed"
+                />
+              </div>
+            </div>
+          </div>
+
+          <div className="pt-4 border-t border-slate-800 flex justify-end">
+            <button
+              type="submit"
+              disabled={saving}
+              className="px-6 py-3 rounded-xl bg-gradient-to-r from-rose-500 to-red-600 hover:from-rose-600 hover:to-red-700 text-white text-sm font-semibold shadow-lg shadow-rose-500/25 flex items-center gap-2 transition-all disabled:opacity-50"
+            >
+              <Save className="w-4 h-4" />
+              <span>{saving ? 'Saving...' : 'Save Profile Changes'}</span>
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
