@@ -159,67 +159,71 @@ async function processCheckIn({ nfcUid, deviceId, device }, { now = new Date() }
 
   const status = computeAttendanceStatus(now, session.startTime, schoolClass.lateThresholdMinutes);
 
-  // Persist attendance atomically (log + attendance list).
-  await withTransaction(async (s) => {
-    const opts = txOptions(s);
-    const fresh = await Session.findById(session._id, null, opts);
-    assertCanCheckIn(fresh, student);
+  // Check if student already checked in for this session
+  const alreadyAttendee = session.attendees.find((a) => String(a.studentId) === String(student._id));
+  const finalStatus = alreadyAttendee ? alreadyAttendee.status : status;
 
-    fresh.attendees.push({ studentId: student._id, checkInTime: now, status });
-    await fresh.save(opts);
-
-    try {
-      await AttendanceLog.create(
-        [
-          {
-            sessionId: fresh._id,
-            studentId: student._id,
-            timestamp: now,
-            status,
-            nfcUid: normalized,
-            deviceId: device._id,
-          },
-        ],
-        opts,
-      );
-    } catch (err) {
-      // Unique index still blocks true duplicates even in the rare
-      // standalone fallback where the in-process check is bypassed.
-      if (err.code === 11000) {
-        throw new ApiError(409, 'Student already checked in for this session', 'DUPLICATE_CHECKIN');
+  if (!alreadyAttendee) {
+    // Persist attendance atomically (log + attendance list).
+    await withTransaction(async (s) => {
+      const opts = txOptions(s);
+      const fresh = await Session.findById(session._id, null, opts);
+      const duplicate = fresh.attendees.some((a) => String(a.studentId) === String(student._id));
+      if (!duplicate) {
+        fresh.attendees.push({ studentId: student._id, checkInTime: now, status });
+        await fresh.save(opts);
+        try {
+          await AttendanceLog.create(
+            [
+              {
+                sessionId: fresh._id,
+                studentId: student._id,
+                timestamp: now,
+                status,
+                nfcUid: normalized,
+                deviceId: device._id,
+              },
+            ],
+            opts,
+          );
+        } catch (err) {
+          if (err.code !== 11000) throw err;
+        }
       }
-      throw err;
-    }
-    return fresh;
-  });
-
-  // Phone blocking (side effect, outside the transaction on purpose).
-  let blocked = student.isBlocked;
-  if (!student.isBlocked) {
-    const { sendBlock } = require('./fcmService');
-    await sendBlock(student, { until: session.endTime, sessionId: String(session._id) });
-    await blockingService.setBlockState(student, {
-      isBlocked: true,
-      blockedUntil: session.endTime,
+      return fresh;
     });
-    blocked = true;
+
+    // Phone blocking (side effect, outside the transaction on purpose).
+    if (!student.isBlocked) {
+      const { sendBlock } = require('./fcmService');
+      await sendBlock(student, { until: session.endTime, sessionId: String(session._id) });
+      await blockingService.setBlockState(student, {
+        isBlocked: true,
+        blockedUntil: session.endTime,
+      });
+    }
   }
 
-  // Live update to the teacher dashboard.
-  socketService.emitToClass(String(schoolClass._id), 'attendance_update', {
+  const payload = {
     sessionId: String(session._id),
     classId: String(schoolClass._id),
     className: schoolClass.name,
     studentId: String(student._id),
-    studentName: student.userId ? student.userId.name : null,
-    email: student.userId ? student.userId.email : null,
+    studentName: student.userId ? student.userId.name : 'Student',
+    email: student.userId ? student.userId.email : '',
     regNumber: student.registrationNumber,
     btechYear: student.btechYear || 'B.Tech 1st Year',
     nfcUid: normalized,
-    status,
-    blocked,
+    status: finalStatus,
+    blocked: true,
     timestamp: now.toISOString(),
-  });
+  };
+
+  // Global broadcast to all connected frontend dashboards & rooms
+  if (socketService.isReady()) {
+    socketService.getIo().emit('attendance_update', payload);
+    socketService.emitToClass(String(schoolClass._id), 'attendance_update', payload);
+  }
 
   return {
     sessionId: String(session._id),
