@@ -75,12 +75,12 @@ async function findOrAutoStartSessionForClass({ schoolClass, dateKey, now, creat
  */
 async function startSessionManually({ classId, dateKey, startTime, endTime, createdBy }) {
   const key = dateKey || dateToKey(new Date());
-  const start = startTime || combineWithDate(key, '00:00');
-  const end = endTime || null;
+  const start = startTime || new Date();
+  const end = endTime || new Date(start.getTime() + 2 * 60 * 60 * 1000);
 
-  if (!end || end.getTime() <= start.getTime()) {
-    throw new ApiError(400, 'endTime must be after startTime', 'INVALID_TIME_RANGE');
-  }
+  // If an active session already exists for this class, reactivate/return it
+  const existingActive = await Session.findOne({ classId, isActive: true });
+  if (existingActive) return existingActive;
 
   try {
     return await Session.create({
@@ -93,7 +93,12 @@ async function startSessionManually({ classId, dateKey, startTime, endTime, crea
     });
   } catch (err) {
     if (err.code === 11000) {
-      throw new ApiError(409, 'A session already exists for this class on this date', 'SESSION_EXISTS');
+      const active = await Session.findOne({ classId, date: key });
+      if (active) {
+        active.isActive = true;
+        await active.save();
+        return active;
+      }
     }
     throw err;
   }
