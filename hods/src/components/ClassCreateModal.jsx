@@ -2,8 +2,8 @@ import { useState, useEffect } from 'react';
 import { X, BookOpen, MapPin, UserCheck, Layers, Plus, Trash2, UserRound, Clock, Calendar } from 'lucide-react';
 import api from '../services/api';
 
-const EMPTY_SUBJECT = { name: '', code: '', teacherId: '' };
 const EMPTY_SLOT = { dayOfWeek: 1, startTime: '09:00', endTime: '10:30' };
+const EMPTY_SUBJECT = { name: '', code: '', teacherId: '', schedule: [{ ...EMPTY_SLOT }] };
 
 const DAYS = [
   { label: 'Monday', value: 1 },
@@ -21,7 +21,6 @@ export default function ClassCreateModal({ isOpen, onClose, onClassCreated, teac
   const [btechYear, setBtechYear] = useState('B.Tech 1st Year');
   const [mentorId, setMentorId] = useState('');
   const [subjects, setSubjects] = useState([{ ...EMPTY_SUBJECT }]);
-  const [schedule, setSchedule] = useState([{ ...EMPTY_SLOT }]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
@@ -35,43 +34,64 @@ export default function ClassCreateModal({ isOpen, onClose, onClassCreated, teac
         name: s.name || '',
         code: s.code || '',
         teacherId: s.teacherId?._id || s.teacherId || '',
+        schedule: (s.schedule || []).map((sc) => ({
+          dayOfWeek: sc.dayOfWeek ?? 1,
+          startTime: sc.startTime || '09:00',
+          endTime: sc.endTime || '10:30',
+        })).length ? (s.schedule || []).map((sc) => ({
+          dayOfWeek: sc.dayOfWeek ?? 1,
+          startTime: sc.startTime || '09:00',
+          endTime: sc.endTime || '10:30',
+        })) : [{ ...EMPTY_SLOT }],
       }));
       setSubjects(existingSubj.length ? existingSubj : [{ ...EMPTY_SUBJECT }]);
-
-      const existingSchedule = (initialData.schedule || []).map((sc) => ({
-        dayOfWeek: sc.dayOfWeek ?? 1,
-        startTime: sc.startTime || '09:00',
-        endTime: sc.endTime || '10:30',
-      }));
-      setSchedule(existingSchedule.length ? existingSchedule : [{ ...EMPTY_SLOT }]);
     } else {
       setName('');
       setRoom('Lab 3B');
       setBtechYear('B.Tech 1st Year');
       setMentorId('');
       setSubjects([{ ...EMPTY_SUBJECT }]);
-      setSchedule([{ ...EMPTY_SLOT }]);
     }
     setError('');
   }, [initialData, isOpen]);
 
   if (!isOpen) return null;
 
-  const updateSubject = (index, field, value) => {
-    setSubjects((prev) => prev.map((s, i) => (i === index ? { ...s, [field]: value } : s)));
+  const updateSubject = (subjIndex, field, value) => {
+    setSubjects((prev) => prev.map((s, i) => (i === subjIndex ? { ...s, [field]: value } : s)));
   };
 
-  const addSubject = () => setSubjects((prev) => [...prev, { ...EMPTY_SUBJECT }]);
-  const removeSubject = (index) =>
-    setSubjects((prev) => (prev.length > 1 ? prev.filter((_, i) => i !== index) : prev));
+  const addSubject = () => setSubjects((prev) => [...prev, { ...EMPTY_SUBJECT, schedule: [{ ...EMPTY_SLOT }] }]);
+  const removeSubject = (subjIndex) =>
+    setSubjects((prev) => (prev.length > 1 ? prev.filter((_, i) => i !== subjIndex) : prev));
 
-  const updateSlot = (index, field, value) => {
-    setSchedule((prev) => prev.map((sc, i) => (i === index ? { ...sc, [field]: field === 'dayOfWeek' ? Number(value) : value } : sc)));
+  const addSubjectSlot = (subjIndex) => {
+    setSubjects((prev) =>
+      prev.map((s, i) => (i === subjIndex ? { ...s, schedule: [...(s.schedule || []), { ...EMPTY_SLOT }] } : s))
+    );
   };
 
-  const addSlot = () => setSchedule((prev) => [...prev, { ...EMPTY_SLOT }]);
-  const removeSlot = (index) =>
-    setSchedule((prev) => (prev.length > 1 ? prev.filter((_, i) => i !== index) : prev));
+  const updateSubjectSlot = (subjIndex, slotIndex, field, value) => {
+    setSubjects((prev) =>
+      prev.map((s, i) => {
+        if (i !== subjIndex) return s;
+        const newSchedule = (s.schedule || []).map((sc, j) =>
+          j === slotIndex ? { ...sc, [field]: field === 'dayOfWeek' ? Number(value) : value } : sc
+        );
+        return { ...s, schedule: newSchedule };
+      })
+    );
+  };
+
+  const removeSubjectSlot = (subjIndex, slotIndex) => {
+    setSubjects((prev) =>
+      prev.map((s, i) => {
+        if (i !== subjIndex) return s;
+        const newSchedule = (s.schedule || []).filter((_, j) => j !== slotIndex);
+        return { ...s, schedule: newSchedule.length ? newSchedule : [{ ...EMPTY_SLOT }] };
+      })
+    );
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -85,16 +105,33 @@ export default function ClassCreateModal({ isOpen, onClose, onClassCreated, teac
         return;
       }
 
+      // Collect master class schedule from all subject schedules
+      const masterSchedule = [];
+      cleanSubjects.forEach((s) => {
+        (s.schedule || []).forEach((sc) => {
+          masterSchedule.push({
+            dayOfWeek: Number(sc.dayOfWeek),
+            startTime: sc.startTime,
+            endTime: sc.endTime,
+          });
+        });
+      });
+
       const payload = {
         name,
         room,
         btechYear,
         mentorId: mentorId || undefined,
-        subjects: cleanSubjects.map((s) => ({ name: s.name, code: s.code, teacherId: s.teacherId })),
-        schedule: schedule.map((sc) => ({
-          dayOfWeek: Number(sc.dayOfWeek),
-          startTime: sc.startTime,
-          endTime: sc.endTime,
+        schedule: masterSchedule,
+        subjects: cleanSubjects.map((s) => ({
+          name: s.name,
+          code: s.code,
+          teacherId: s.teacherId,
+          schedule: (s.schedule || []).map((sc) => ({
+            dayOfWeek: Number(sc.dayOfWeek),
+            startTime: sc.startTime,
+            endTime: sc.endTime,
+          })),
         })),
       };
 
@@ -120,7 +157,7 @@ export default function ClassCreateModal({ isOpen, onClose, onClassCreated, teac
           <div className="flex items-center gap-2">
             <BookOpen className="w-5 h-5 text-indigo-400" />
             <h3 className="text-lg font-bold text-white">
-              {initialData?._id ? 'Edit B.Tech Class (Subjects & Weekly Slots)' : 'Create B.Tech Class (Subjects & Weekly Slots)'}
+              {initialData?._id ? 'Edit B.Tech Class (Subject-Wise Timetables)' : 'Create B.Tech Class (Subject-Wise Timetables)'}
             </h3>
           </div>
           <button onClick={onClose} className="p-1 text-slate-400 hover:text-white rounded-lg">
@@ -129,7 +166,7 @@ export default function ClassCreateModal({ isOpen, onClose, onClassCreated, teac
         </div>
 
         {error && (
-          <div className="p-3 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-300 text-xs">
+          <div className="p-3 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-300 text-xs font-semibold">
             {error}
           </div>
         )}
@@ -207,121 +244,46 @@ export default function ClassCreateModal({ isOpen, onClose, onClassCreated, teac
             </div>
           </div>
 
-          {/* Weekly Schedule Slots Builder */}
-          <div className="pt-2 border-t border-slate-800">
-            <div className="flex items-center justify-between mb-3">
-              <div className="flex items-center gap-2">
-                <Calendar className="w-4 h-4 text-emerald-400" />
-                <label className="text-xs font-semibold text-slate-300 uppercase tracking-wider">
-                  Weekly Class Schedule Slots
-                </label>
-              </div>
-              <button
-                type="button"
-                onClick={addSlot}
-                className="px-2.5 py-1 rounded-lg bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-xs font-semibold flex items-center gap-1 hover:bg-emerald-500/20"
-              >
-                <Plus className="w-3.5 h-3.5" />
-                <span>Add Weekly Slot</span>
-              </button>
-            </div>
-
-            <div className="space-y-3">
-              {schedule.map((sc, index) => (
-                <div key={index} className="p-3 rounded-2xl bg-slate-900/80 border border-slate-800 flex items-center gap-3">
-                  <div className="w-1/3">
-                    <label className="block text-[10px] font-semibold text-slate-400 uppercase mb-1">
-                      Day of Week
-                    </label>
-                    <select
-                      value={sc.dayOfWeek}
-                      onChange={(e) => updateSlot(index, 'dayOfWeek', e.target.value)}
-                      className="w-full px-3 py-2 rounded-xl bg-slate-800 border border-slate-700 text-emerald-300 font-bold text-xs focus:outline-none focus:border-emerald-500"
-                    >
-                      {DAYS.map((d) => (
-                        <option key={d.value} value={d.value}>
-                          {d.label}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-
-                  <div className="w-1/3">
-                    <label className="block text-[10px] font-semibold text-slate-400 uppercase mb-1 flex items-center gap-1">
-                      <Clock className="w-3 h-3 text-emerald-400" /> Start Time
-                    </label>
-                    <input
-                      type="time"
-                      required
-                      value={sc.startTime}
-                      onChange={(e) => updateSlot(index, 'startTime', e.target.value)}
-                      className="w-full px-3 py-2 rounded-xl bg-slate-800 border border-slate-700 text-white text-xs focus:outline-none focus:border-emerald-500"
-                    />
-                  </div>
-
-                  <div className="w-1/3">
-                    <label className="block text-[10px] font-semibold text-slate-400 uppercase mb-1 flex items-center gap-1">
-                      <Clock className="w-3 h-3 text-rose-400" /> End Time
-                    </label>
-                    <input
-                      type="time"
-                      required
-                      value={sc.endTime}
-                      onChange={(e) => updateSlot(index, 'endTime', e.target.value)}
-                      className="w-full px-3 py-2 rounded-xl bg-slate-800 border border-slate-700 text-white text-xs focus:outline-none focus:border-emerald-500"
-                    />
-                  </div>
-
-                  {schedule.length > 1 && (
-                    <button
-                      type="button"
-                      onClick={() => removeSlot(index)}
-                      className="p-2 text-slate-500 hover:text-rose-400 mt-4"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
-                  )}
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* Subjects Section */}
-          <div className="pt-2 border-t border-slate-800">
-            <div className="flex items-center justify-between mb-3">
+          {/* Subject-Wise Configuration with Subject Timetable Slots */}
+          <div className="pt-2 border-t border-slate-800 space-y-4">
+            <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <Layers className="w-4 h-4 text-indigo-400" />
                 <label className="text-xs font-semibold text-slate-300 uppercase tracking-wider">
-                  Subjects Inside This Class & Assigned Teachers
+                  Subjects & Subject-Wise Weekly Timetable Slots
                 </label>
               </div>
               <button
                 type="button"
                 onClick={addSubject}
-                className="px-2.5 py-1 rounded-lg bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 text-xs font-semibold flex items-center gap-1 hover:bg-indigo-500/20"
+                className="px-3 py-1.5 rounded-xl bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 text-xs font-semibold flex items-center gap-1.5 hover:bg-indigo-500/20 shadow-sm"
               >
-                <Plus className="w-3.5 h-3.5" />
+                <Plus className="w-4 h-4" />
                 <span>Add Subject</span>
               </button>
             </div>
 
-            <div className="space-y-3">
-              {subjects.map((subj, index) => (
-                <div key={index} className="p-3 rounded-2xl bg-slate-900/80 border border-slate-800 space-y-3">
-                  <div className="flex items-center justify-between">
-                    <span className="text-[11px] font-bold text-indigo-400 uppercase tracking-wider">
-                      Subject #{index + 1}
+            <div className="space-y-4">
+              {subjects.map((subj, subjIndex) => (
+                <div key={subjIndex} className="p-4 rounded-3xl bg-slate-900/90 border border-slate-800 space-y-4 shadow-lg">
+                  <div className="flex items-center justify-between border-b border-slate-800/80 pb-2">
+                    <span className="text-xs font-bold text-indigo-400 uppercase tracking-wider flex items-center gap-1.5">
+                      <BookOpen className="w-3.5 h-3.5 text-indigo-400" />
+                      Subject #{subjIndex + 1}
                     </span>
                     {subjects.length > 1 && (
                       <button
                         type="button"
-                        onClick={() => removeSubject(index)}
-                        className="p-1 text-slate-500 hover:text-rose-400"
+                        onClick={() => removeSubject(subjIndex)}
+                        className="p-1 text-slate-500 hover:text-rose-400 flex items-center gap-1 text-xs"
                       >
-                        <Trash2 className="w-4 h-4" />
+                        <Trash2 className="w-3.5 h-3.5" />
+                        <span>Remove Subject</span>
                       </button>
                     )}
                   </div>
+
+                  {/* Subject details inputs */}
                   <div className="grid grid-cols-3 gap-3">
                     <div>
                       <label className="block text-[10px] font-semibold text-slate-400 uppercase mb-1">
@@ -332,8 +294,8 @@ export default function ClassCreateModal({ isOpen, onClose, onClassCreated, teac
                         required
                         placeholder="e.g. Operating Systems"
                         value={subj.name}
-                        onChange={(e) => updateSubject(index, 'name', e.target.value)}
-                        className="w-full px-3 py-2 rounded-xl bg-slate-800 border border-slate-700 text-white text-sm focus:outline-none focus:border-indigo-500"
+                        onChange={(e) => updateSubject(subjIndex, 'name', e.target.value)}
+                        className="w-full px-3 py-2 rounded-xl bg-slate-800 border border-slate-700 text-white text-xs focus:outline-none focus:border-indigo-500"
                       />
                     </div>
                     <div>
@@ -344,19 +306,19 @@ export default function ClassCreateModal({ isOpen, onClose, onClassCreated, teac
                         type="text"
                         placeholder="e.g. CS-302"
                         value={subj.code}
-                        onChange={(e) => updateSubject(index, 'code', e.target.value)}
-                        className="w-full px-3 py-2 rounded-xl bg-slate-800 border border-slate-700 text-white text-sm focus:outline-none focus:border-indigo-500 font-mono uppercase"
+                        onChange={(e) => updateSubject(subjIndex, 'code', e.target.value)}
+                        className="w-full px-3 py-2 rounded-xl bg-slate-800 border border-slate-700 text-white text-xs focus:outline-none focus:border-indigo-500 font-mono uppercase"
                       />
                     </div>
                     <div>
                       <label className="block text-[10px] font-semibold text-slate-400 uppercase mb-1">
-                        Assign Teacher
+                        Assign Faculty Teacher
                       </label>
                       <select
                         required
                         value={subj.teacherId}
-                        onChange={(e) => updateSubject(index, 'teacherId', e.target.value)}
-                        className="w-full px-3 py-2 rounded-xl bg-slate-800 border border-slate-700 text-white text-sm focus:outline-none focus:border-indigo-500"
+                        onChange={(e) => updateSubject(subjIndex, 'teacherId', e.target.value)}
+                        className="w-full px-3 py-2 rounded-xl bg-slate-800 border border-slate-700 text-white text-xs focus:outline-none focus:border-indigo-500"
                       >
                         <option value="">Select Teacher...</option>
                         {teachers.map((t) => (
@@ -365,6 +327,83 @@ export default function ClassCreateModal({ isOpen, onClose, onClassCreated, teac
                           </option>
                         ))}
                       </select>
+                    </div>
+                  </div>
+
+                  {/* Subject-Wise Timetable Slots Sub-section */}
+                  <div className="pt-2 border-t border-slate-800/60 space-y-2">
+                    <div className="flex items-center justify-between">
+                      <label className="text-[11px] font-bold text-emerald-400 uppercase tracking-wider flex items-center gap-1.5">
+                        <Calendar className="w-3.5 h-3.5 text-emerald-400" />
+                        Subject Weekly Timetable Slots
+                      </label>
+                      <button
+                        type="button"
+                        onClick={() => addSubjectSlot(subjIndex)}
+                        className="px-2.5 py-0.5 rounded-lg bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-[11px] font-semibold flex items-center gap-1 hover:bg-emerald-500/20"
+                      >
+                        <Plus className="w-3 h-3" />
+                        <span>Add Slot</span>
+                      </button>
+                    </div>
+
+                    <div className="space-y-2">
+                      {(subj.schedule || []).map((sc, slotIndex) => (
+                        <div key={slotIndex} className="p-2.5 rounded-xl bg-slate-950/60 border border-slate-800 flex items-center gap-2">
+                          <div className="w-1/3">
+                            <label className="block text-[9px] font-semibold text-slate-400 uppercase mb-0.5">
+                              Day
+                            </label>
+                            <select
+                              value={sc.dayOfWeek}
+                              onChange={(e) => updateSubjectSlot(subjIndex, slotIndex, 'dayOfWeek', e.target.value)}
+                              className="w-full px-2 py-1.5 rounded-lg bg-slate-800 border border-slate-700 text-emerald-300 font-bold text-xs focus:outline-none focus:border-emerald-500"
+                            >
+                              {DAYS.map((d) => (
+                                <option key={d.value} value={d.value}>
+                                  {d.label}
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+
+                          <div className="w-1/3">
+                            <label className="block text-[9px] font-semibold text-slate-400 uppercase mb-0.5 flex items-center gap-1">
+                              <Clock className="w-2.5 h-2.5 text-emerald-400" /> Start
+                            </label>
+                            <input
+                              type="time"
+                              required
+                              value={sc.startTime}
+                              onChange={(e) => updateSubjectSlot(subjIndex, slotIndex, 'startTime', e.target.value)}
+                              className="w-full px-2 py-1.5 rounded-lg bg-slate-800 border border-slate-700 text-white text-xs focus:outline-none focus:border-emerald-500"
+                            />
+                          </div>
+
+                          <div className="w-1/3">
+                            <label className="block text-[9px] font-semibold text-slate-400 uppercase mb-0.5 flex items-center gap-1">
+                              <Clock className="w-2.5 h-2.5 text-rose-400" /> End
+                            </label>
+                            <input
+                              type="time"
+                              required
+                              value={sc.endTime}
+                              onChange={(e) => updateSubjectSlot(subjIndex, slotIndex, 'endTime', e.target.value)}
+                              className="w-full px-2 py-1.5 rounded-lg bg-slate-800 border border-slate-700 text-white text-xs focus:outline-none focus:border-emerald-500"
+                            />
+                          </div>
+
+                          {(subj.schedule || []).length > 1 && (
+                            <button
+                              type="button"
+                              onClick={() => removeSubjectSlot(subjIndex, slotIndex)}
+                              className="p-1 text-slate-500 hover:text-rose-400 mt-3"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          )}
+                        </div>
+                      ))}
                     </div>
                   </div>
                 </div>

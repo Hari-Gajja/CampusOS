@@ -13,7 +13,7 @@ const scheduleSlotSchema = new mongoose.Schema(
 
 const subjectSchema = new mongoose.Schema(
   {
-    // Subject taught inside the class, e.g. { name: "Operating Systems", code: "CS-302", teacherId }
+    // Subject taught inside the class, e.g. { name: "Operating Systems", code: "CS-302", teacherId, schedule }
     name: { type: String, required: true, trim: true, maxlength: 120 },
     code: { type: String, trim: true, default: '', maxlength: 40 },
     teacherId: {
@@ -22,6 +22,8 @@ const subjectSchema = new mongoose.Schema(
       required: true,
       index: true,
     },
+    // Subject-wise weekly schedule slots
+    schedule: { type: [scheduleSlotSchema], default: [] },
   },
   { _id: false },
 );

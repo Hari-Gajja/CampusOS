@@ -96,6 +96,13 @@ async function resolveSubjectTeacherIds(subjects) {
       name: String((s && (s.name || s.subjectName)) || '').trim(),
       code: String((s && (s.code || s.subjectCode)) || '').trim(),
       teacherId: await resolveTeacherId(s && s.teacherId),
+      schedule: Array.isArray(s && s.schedule)
+        ? s.schedule.map((sc) => ({
+            dayOfWeek: Number(sc.dayOfWeek),
+            startTime: String(sc.startTime),
+            endTime: String(sc.endTime),
+          }))
+        : [],
     })),
   );
 }
@@ -109,6 +116,7 @@ function normalizeSubjects(subjects) {
       name: String(s.name || s.subjectName).trim(),
       code: String(s.code || s.subjectCode || '').trim(),
       teacherId: s.teacherId,
+      schedule: Array.isArray(s.schedule) ? s.schedule : [],
     }));
 }
 
