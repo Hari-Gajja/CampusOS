@@ -2,13 +2,20 @@ import { useState, useEffect } from 'react';
 import api from '../services/api';
 import LoadingSpinner from '../components/LoadingSpinner';
 import ErrorAlert from '../components/ErrorAlert';
-import { Lock, Unlock, ShieldAlert, Smartphone, Clock, RefreshCw, CheckCircle2, PhoneCall, Ban, Monitor, Laptop } from 'lucide-react';
+import { Lock, Unlock, ShieldAlert, Smartphone, Clock, RefreshCw, CheckCircle2, PhoneCall, Ban, Monitor, Laptop, ShieldCheck, Key, Settings, AlertTriangle } from 'lucide-react';
 import { formatTime } from '../utils/helpers';
 
 export default function BlockingStatus() {
   const [loading, setLoading] = useState(true);
   const [checking, setChecking] = useState(false);
   const [error, setError] = useState(null);
+  const [permissions, setPermissions] = useState({
+    deviceAdmin: true,
+    usageAccess: true,
+    overlayPermission: true,
+    accessibilityService: true,
+    batteryOptimization: true,
+  });
   const [status, setStatus] = useState({
     isBlocked: false,
     blockedUntil: null,
@@ -61,14 +68,20 @@ export default function BlockingStatus() {
     }
   };
 
+  const togglePermission = (key) => {
+    setPermissions((prev) => ({ ...prev, [key]: !prev[key] }));
+  };
+
+  const allPermissionsGranted = Object.values(permissions).every(Boolean);
+
   if (loading) return <LoadingSpinner />;
 
   return (
     <div className="max-w-4xl space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-white">Cross-Platform OS App Blocking Status</h1>
-          <p className="text-slate-400 text-sm mt-1">Multi-OS Distraction Shield — Blocks all apps across Windows, Android, iOS & macOS except Phone Calls</p>
+          <h1 className="text-2xl font-bold text-white">Cross-Platform OS App Blocking & Permissions</h1>
+          <p className="text-slate-400 text-sm mt-1">Multi-OS Kiosk Shield — Enforces complete app lockdown except Phone Calls</p>
         </div>
 
         <button
@@ -82,6 +95,115 @@ export default function BlockingStatus() {
       </div>
 
       {error && <ErrorAlert message={error} onRetry={checkBlockingStatus} />}
+
+      {/* Required OS Permissions Setup Hub */}
+      <div className="p-6 rounded-3xl glass-panel border border-slate-800 space-y-4">
+        <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+          <div className="flex items-center gap-2">
+            <ShieldCheck className="w-5 h-5 text-indigo-400" />
+            <h3 className="text-base font-bold text-white">Required System Lock Permissions</h3>
+          </div>
+          <span
+            className={`px-3 py-1 rounded-full text-xs font-bold ${
+              allPermissionsGranted
+                ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
+                : 'bg-amber-500/20 text-amber-300 border border-amber-500/30'
+            }`}
+          >
+            {allPermissionsGranted ? 'ALL PERMISSIONS GRANTED' : 'ACTION REQUIRED'}
+          </span>
+        </div>
+
+        <p className="text-xs text-slate-400 leading-relaxed">
+          To strictly block WhatsApp, Browsers, Games, and 3rd-party apps during lectures while keeping Phone Calls available, the CampusOS Device Companion requires full system lock permissions:
+        </p>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          {/* Permission 1: Device Admin */}
+          <div className="p-3.5 rounded-2xl bg-slate-900/90 border border-slate-800 flex items-center justify-between">
+            <div className="space-y-0.5">
+              <div className="flex items-center gap-1.5 text-xs font-bold text-white">
+                <Key className="w-3.5 h-3.5 text-indigo-400" />
+                <span>1. Device Administrator</span>
+              </div>
+              <p className="text-[11px] text-slate-400">Prevents app bypass or unauthorized uninstall</p>
+            </div>
+            <button
+              onClick={() => togglePermission('deviceAdmin')}
+              className={`px-3 py-1 rounded-xl text-xs font-bold transition-colors ${
+                permissions.deviceAdmin
+                  ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
+                  : 'bg-amber-500/20 text-amber-300 border border-amber-500/30'
+              }`}
+            >
+              {permissions.deviceAdmin ? 'Granted ✓' : 'Grant Admin'}
+            </button>
+          </div>
+
+          {/* Permission 2: Usage Access */}
+          <div className="p-3.5 rounded-2xl bg-slate-900/90 border border-slate-800 flex items-center justify-between">
+            <div className="space-y-0.5">
+              <div className="flex items-center gap-1.5 text-xs font-bold text-white">
+                <Settings className="w-3.5 h-3.5 text-indigo-400" />
+                <span>2. Usage Access Stats</span>
+              </div>
+              <p className="text-[11px] text-slate-400">Detects launched apps (WhatsApp, Browsers, Games)</p>
+            </div>
+            <button
+              onClick={() => togglePermission('usageAccess')}
+              className={`px-3 py-1 rounded-xl text-xs font-bold transition-colors ${
+                permissions.usageAccess
+                  ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
+                  : 'bg-amber-500/20 text-amber-300 border border-amber-500/30'
+              }`}
+            >
+              {permissions.usageAccess ? 'Granted ✓' : 'Grant Access'}
+            </button>
+          </div>
+
+          {/* Permission 3: Display Over Other Apps */}
+          <div className="p-3.5 rounded-2xl bg-slate-900/90 border border-slate-800 flex items-center justify-between">
+            <div className="space-y-0.5">
+              <div className="flex items-center gap-1.5 text-xs font-bold text-white">
+                <Monitor className="w-3.5 h-3.5 text-indigo-400" />
+                <span>3. Display Over Other Apps</span>
+              </div>
+              <p className="text-[11px] text-slate-400">Draws fullscreen lock barrier over blocked apps</p>
+            </div>
+            <button
+              onClick={() => togglePermission('overlayPermission')}
+              className={`px-3 py-1 rounded-xl text-xs font-bold transition-colors ${
+                permissions.overlayPermission
+                  ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
+                  : 'bg-amber-500/20 text-amber-300 border border-amber-500/30'
+              }`}
+            >
+              {permissions.overlayPermission ? 'Granted ✓' : 'Grant Overlay'}
+            </button>
+          </div>
+
+          {/* Permission 4: Accessibility Service */}
+          <div className="p-3.5 rounded-2xl bg-slate-900/90 border border-slate-800 flex items-center justify-between">
+            <div className="space-y-0.5">
+              <div className="flex items-center gap-1.5 text-xs font-bold text-white">
+                <Smartphone className="w-3.5 h-3.5 text-indigo-400" />
+                <span>4. Accessibility Lock Service</span>
+              </div>
+              <p className="text-[11px] text-slate-400">Instantly closes blocked apps on launch</p>
+            </div>
+            <button
+              onClick={() => togglePermission('accessibilityService')}
+              className={`px-3 py-1 rounded-xl text-xs font-bold transition-colors ${
+                permissions.accessibilityService
+                  ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
+                  : 'bg-amber-500/20 text-amber-300 border border-amber-500/30'
+              }`}
+            >
+              {permissions.accessibilityService ? 'Granted ✓' : 'Enable Service'}
+            </button>
+          </div>
+        </div>
+      </div>
 
       {/* Main Status Hero Card */}
       <div
@@ -115,12 +237,12 @@ export default function BlockingStatus() {
                     : 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
                 }`}
               >
-                {status.isBlocked ? 'CROSS-PLATFORM APP LOCK ACTIVE' : 'Devices Active / Unlocked'}
+                {status.isBlocked ? 'STRICT ALLOWLIST LOCKDOWN ACTIVE' : 'Devices Active / Unlocked'}
               </span>
             </div>
             <h2 className="text-xl font-bold text-white mt-2">
               {status.isBlocked
-                ? `All Windows desktop & Android mobile applications locked for ${status.className || 'Lecture'} until ${formatTime(status.blockedUntil)}.`
+                ? `All Windows desktop & Android mobile apps are locked for ${status.className || 'Lecture'} until ${formatTime(status.blockedUntil)}.`
                 : 'No active class locking policies currently enforced.'}
             </h2>
           </div>
