@@ -125,9 +125,8 @@ const updateUser = asyncHandler(async (req, res) => {
       const blocked = ['role'];
       for (const k of blocked) delete body[k];
     } else {
-      // Teachers may only edit student accounts (as their class mentor).
+      // Teachers may only edit student accounts.
       if (user.role !== 'student') throw new ApiError(403, 'Teachers may only edit student accounts', 'FORBIDDEN');
-      await assertTeacherIsMentor(req.user);
       const blocked = ['role'];
       for (const k of blocked) delete body[k];
     }

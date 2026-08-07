@@ -33,20 +33,6 @@ const register = asyncHandler(async (req, res) => {
     throw new ApiError(403, 'Teachers can only add Student accounts', 'FORBIDDEN_ROLE');
   }
 
-  // Systematic workflow: only teachers acting as a class mentor may add
-  // students (and only into their own mentor classes).
-  if (req.user.role === 'teacher') {
-    const teacher = await Teacher.findOne({ userId: req.user.id });
-    const mentorCount = teacher ? await Class.countDocuments({ mentorId: teacher._id }) : 0;
-    if (!mentorCount) {
-      throw new ApiError(
-        403,
-        'Only teachers assigned as a class mentor can register student accounts',
-        'MENTOR_REQUIRED',
-      );
-    }
-  }
-
   const formattedUid = nfcCardUid ? String(nfcCardUid).replace(/[\s:]/g, '').toUpperCase() : undefined;
 
   if (formattedUid) {

@@ -13,8 +13,8 @@ router.get(
   '/',
   validate([
     query('role').optional().isIn(['teacher', 'student', 'admin', 'hod']).withMessage('invalid role'),
-    query('page').optional().isInt({ min: 1 }).withMessage('page must be a positive integer'),
-    query('limit').optional().isInt({ min: 1, max: 100 }).withMessage('limit must be 1-100'),
+    query('page').optional().toInt().isInt({ min: 1 }).withMessage('page must be a positive integer'),
+    query('limit').optional().toInt().isInt({ min: 1, max: 500 }).withMessage('limit must be 1-500'),
   ]),
   userController.listUsers,
 );
