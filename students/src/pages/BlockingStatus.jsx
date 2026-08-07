@@ -1,11 +1,7 @@
-import { useState, useEffect } from 'react';
-import api from '../services/api';
-import LoadingSpinner from '../components/LoadingSpinner';
-import ErrorAlert from '../components/ErrorAlert';
-import { Lock, Unlock, ShieldAlert, Smartphone, Clock, RefreshCw, CheckCircle2, PhoneCall, Ban, Monitor, Laptop, ShieldCheck, Key, Settings, AlertTriangle } from 'lucide-react';
-import { formatTime } from '../utils/helpers';
+import { useSocket } from '../contexts/SocketContext';
 
 export default function BlockingStatus() {
+  const { socket } = useSocket();
   const [loading, setLoading] = useState(true);
   const [checking, setChecking] = useState(false);
   const [error, setError] = useState(null);
@@ -35,7 +31,30 @@ export default function BlockingStatus() {
 
   useEffect(() => {
     checkBlockingStatus();
-  }, []);
+
+    if (socket) {
+      socket.on('nfc_auto_lock_triggered', (data) => {
+        setStatus((prev) => ({
+          ...prev,
+          isBlocked: true,
+          blockedUntil: data.blockedUntil,
+          className: data.className || prev.className,
+          room: data.room || prev.room,
+        }));
+      });
+
+      socket.on('attendance_update', () => {
+        checkBlockingStatus();
+      });
+    }
+
+    return () => {
+      if (socket) {
+        socket.off('nfc_auto_lock_triggered');
+        socket.off('attendance_update');
+      }
+    };
+  }, [socket]);
 
   const checkBlockingStatus = async () => {
     try {

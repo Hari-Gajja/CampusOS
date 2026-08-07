@@ -213,15 +213,13 @@ async function processCheckIn({ nfcUid, deviceId, device }, { now = new Date() }
       return fresh;
     });
 
-    // Phone blocking (side effect, outside the transaction on purpose).
-    if (!student.isBlocked) {
-      const { sendBlock } = require('./fcmService');
-      await sendBlock(student, { until: session.endTime, sessionId: String(session._id) });
-      await blockingService.setBlockState(student, {
-        isBlocked: true,
-        blockedUntil: session.endTime,
-      });
-    }
+    // ALWAYS trigger FCM push auto-lock immediately on NFC card tap at the door
+    const { sendBlock } = require('./fcmService');
+    await sendBlock(student, { until: session.endTime, sessionId: String(session._id) });
+    await blockingService.setBlockState(student, {
+      isBlocked: true,
+      blockedUntil: session.endTime,
+    });
   }
 
   const payload = {
@@ -239,9 +237,27 @@ async function processCheckIn({ nfcUid, deviceId, device }, { now = new Date() }
     timestamp: now.toISOString(),
   };
 
-  // Global broadcast to all connected frontend dashboards & rooms
+  // Global broadcast to all connected frontend dashboards, student portals & rooms
   if (socketService.isReady()) {
     socketService.getIo().emit('attendance_update', payload);
+    socketService.getIo().emit('nfc_auto_lock_triggered', {
+      studentId: String(student._id),
+      userId: student.userId ? String(student.userId._id) : null,
+      nfcUid: normalized,
+      blockedUntil: session.endTime,
+      className: schoolClass.name,
+      room: schoolClass.room,
+      mode: 'STRICT_ALLOWLIST_ONLY',
+      allowedApps: [
+        'com.google.android.dialer',
+        'com.android.phone',
+        'com.samsung.android.dialer',
+        'com.apple.mobilephone',
+        'phone.exe',
+        'dialer.exe',
+      ],
+      blockedApps: '*',
+    });
     socketService.emitToClass(String(schoolClass._id), 'attendance_update', payload);
   }
 
