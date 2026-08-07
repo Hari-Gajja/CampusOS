@@ -1,3 +1,9 @@
+import { useState, useEffect } from 'react';
+import api from '../services/api';
+import LoadingSpinner from '../components/LoadingSpinner';
+import ErrorAlert from '../components/ErrorAlert';
+import { Lock, Unlock, ShieldAlert, Smartphone, Clock, RefreshCw, CheckCircle2, PhoneCall, Ban, Monitor, Laptop, ShieldCheck, Key, Settings, AlertTriangle } from 'lucide-react';
+import { formatTime } from '../utils/helpers';
 import { useSocket } from '../contexts/SocketContext';
 
 export default function BlockingStatus() {
