@@ -85,9 +85,12 @@ const reportStatus = asyncHandler(async (req, res) => {
     className: activeSession && activeSession.classId ? activeSession.classId.name : null,
     room: activeSession && activeSession.classId ? activeSession.classId.room : null,
     policy: 'CROSS_PLATFORM_STRICT_LOCK',
+    enforcementMode: 'STRICT_ALLOWLIST_ONLY',
+    defaultAction: 'DENY_ALL',
     supportedOs: ['Windows OS', 'Android OS', 'iOS / iPadOS', 'macOS', 'Linux'],
     androidPolicy: {
-      mode: 'STRICT_MOBILE_LOCK',
+      mode: 'PURE_ALLOWLIST_KIOSK',
+      defaultAction: 'BLOCK_ALL',
       allowedPackages: [
         'com.google.android.dialer',
         'com.android.phone',
@@ -95,11 +98,27 @@ const reportStatus = asyncHandler(async (req, res) => {
         'com.apple.mobilephone',
         'com.android.incallui',
       ],
-      blockedPackages: '*',
+      blockedPackages: [
+        'com.whatsapp',
+        'com.whatsapp.w4b',
+        'com.instagram.android',
+        'com.facebook.katana',
+        'com.snapchat.android',
+        'com.twitter.android',
+        'com.zhiliaoapp.musically',
+        'com.google.android.youtube',
+        'com.android.chrome',
+        'org.mozilla.firefox',
+        '*',
+      ],
     },
     windowsPolicy: {
-      mode: 'STRICT_DESKTOP_LOCK',
+      mode: 'PURE_ALLOWLIST_DESKTOP',
+      defaultAction: 'BLOCK_ALL',
+      whitelistedExecutables: ['dialer.exe', 'phone.exe', 'CampusOSClient.exe'],
       blockedExecutables: [
+        'WhatsApp.exe',
+        'WhatsAppHost.exe',
         'chrome.exe',
         'msedge.exe',
         'firefox.exe',
@@ -107,10 +126,10 @@ const reportStatus = asyncHandler(async (req, res) => {
         'steam.exe',
         'spotify.exe',
         'telegram.exe',
-        'whatsapp.exe',
+        'brave.exe',
+        'opera.exe',
         '*',
       ],
-      whitelistedExecutables: ['dialer.exe', 'phone.exe', 'CampusOSClient.exe'],
     },
     allowedApps: [
       'com.google.android.dialer',
@@ -122,7 +141,7 @@ const reportStatus = asyncHandler(async (req, res) => {
       'dialer.exe',
     ],
     blockedApps: '*',
-    message: 'All Windows desktop & Android mobile applications are strictly locked. Only Phone Calls are allowed.',
+    message: 'STRICT ALLOWLIST ENFORCED: WhatsApp, Browsers, Games, and all 3rd-party apps are blocked. Only Phone Calls are allowed.',
   });
 });
 

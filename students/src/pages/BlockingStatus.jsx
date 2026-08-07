@@ -154,10 +154,10 @@ export default function BlockingStatus() {
               <div className="p-4 rounded-2xl bg-slate-900/90 border border-slate-800 space-y-2">
                 <div className="flex items-center gap-2 text-indigo-400 font-bold text-xs uppercase tracking-wider">
                   <Monitor className="w-4 h-4 text-indigo-400" />
-                  <span>Windows OS Lock</span>
+                  <span>Windows OS Strict Lock</span>
                 </div>
                 <p className="text-slate-300 text-xs leading-relaxed">
-                  💻 <strong>All `.exe` Desktop Apps Blocked</strong>: Chrome, Edge, Firefox, Discord, Steam, Spotify, Games, and IDEs.
+                  💻 <strong>All Desktop `.exe` Apps Blocked</strong>: WhatsApp Desktop (`WhatsApp.exe`), Chrome, Edge, Firefox, Discord, Steam, Spotify, Games, and IDEs.
                 </p>
               </div>
 
@@ -165,10 +165,10 @@ export default function BlockingStatus() {
               <div className="p-4 rounded-2xl bg-slate-900/90 border border-slate-800 space-y-2">
                 <div className="flex items-center gap-2 text-rose-400 font-bold text-xs uppercase tracking-wider">
                   <Ban className="w-4 h-4 text-rose-400" />
-                  <span>Android / iOS Mobile Lock</span>
+                  <span>Android & Mobile Kiosk Mode</span>
                 </div>
                 <p className="text-slate-300 text-xs leading-relaxed">
-                  📱 <strong>All Mobile Apps Blocked</strong>: Social Media (Instagram, WhatsApp, TikTok), YouTube, Games, and Browsers.
+                  📱 <strong>All Mobile Apps Blocked</strong>: WhatsApp (`com.whatsapp`), Instagram, TikTok, Facebook, YouTube, Games, and Browsers.
                 </p>
               </div>
 
@@ -176,10 +176,10 @@ export default function BlockingStatus() {
               <div className="p-4 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 space-y-2">
                 <div className="flex items-center gap-2 text-emerald-400 font-bold text-xs uppercase tracking-wider">
                   <PhoneCall className="w-4 h-4 text-emerald-400 animate-pulse" />
-                  <span>Universal Whitelist</span>
+                  <span>Universal Phone Whitelist</span>
                 </div>
                 <p className="text-slate-300 text-xs leading-relaxed">
-                  📞 <strong>Phone Calls App (`Phone Dialer`)</strong>: Whitelisted on all OS platforms for making and receiving emergency phone calls.
+                  📞 <strong>Only Phone Calls App Allowed</strong>: Whitelisted on all Windows & Mobile platforms for emergency voice calling.
                 </p>
               </div>
             </div>
