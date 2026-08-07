@@ -24,15 +24,8 @@ router.post(
   blockingController.endBlocking,
 );
 
-// POST /blocking/status  (student app sync)
-router.post(
-  '/status',
-  authenticate,
-  validate([
-    body('isBlocked').isBoolean().withMessage('isBlocked must be a boolean'),
-    body('sessionId').optional().isMongoId().withMessage('invalid session id'),
-  ]),
-  blockingController.reportStatus,
-);
+// GET & POST /blocking/status  (student app sync)
+router.get('/status', authenticate, blockingController.reportStatus);
+router.post('/status', authenticate, blockingController.reportStatus);
 
 module.exports = router;

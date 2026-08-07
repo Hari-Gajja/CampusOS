@@ -50,50 +50,40 @@ const endBlocking = asyncHandler(async (req, res) => {
 });
 
 /**
- * POST /api/v1/blocking/status  (student app)
- * Body: { isBlocked: boolean, sessionId?: string }
- * The app reports its local blocking state; the server reconciles its
- * persisted flag and responds with the expected state.
+ * GET & POST /api/v1/blocking/status  (student app sync)
+ * Query active sessions and enforce app blocking state until teacher stops the class.
  */
 const reportStatus = asyncHandler(async (req, res) => {
-  const { isBlocked, sessionId } = req.body;
-
   const student = await Student.findOne({ userId: req.user.id });
   if (!student) throw new ApiError(404, 'Student profile not found', 'PROFILE_NOT_FOUND');
 
-  let activeSessionInfo = null;
-  if (student.blockedUntil || student.isBlocked) {
-    const activeSession = await Session.findOne({
-      isActive: true,
-      endTime: { $gt: new Date() },
-    }).populate('classId', 'name room');
-    if (activeSession && activeSession.classId) {
-      activeSessionInfo = {
-        className: activeSession.classId.name,
-        room: activeSession.classId.room,
-      };
-    }
+  // Check if any active class session is currently running
+  const activeSession = await Session.findOne({
+    isActive: true,
+    $or: [
+      { classId: { $in: student.enrolledClasses || [] } },
+      { _id: { $exists: true } },
+    ],
+  }).sort({ createdAt: -1 }).populate('classId', 'name room');
+
+  const isClassInProgress = Boolean(activeSession && activeSession.isActive);
+  const activeEndTime = isClassInProgress ? activeSession.endTime : null;
+
+  if (isClassInProgress) {
+    await blockingService.setBlockState(student, { isBlocked: true, blockedUntil: activeEndTime });
+  } else if (student.blockedUntil && new Date(student.blockedUntil).getTime() <= Date.now()) {
+    await blockingService.setBlockState(student, { isBlocked: false, blockedUntil: null });
   }
 
-  if (typeof isBlocked === 'boolean') {
-    if (!isBlocked && student.isBlocked && sessionId) {
-      // App claims it is unlocked; verify the session is actually over
-      // before trusting it, otherwise re-send the block command.
-      const session = await Session.findById(sessionId);
-      const sessionOver = session && (!session.isActive || new Date(session.endTime).getTime() <= Date.now());
-      if (!sessionOver) {
-        const { sendBlock } = fcmService;
-        await sendBlock(student, { until: student.blockedUntil || new Date(), sessionId });
-        return res.json({ success: true, state: 'block', reblocked: true, ...activeSessionInfo });
-      }
-    }
-    await blockingService.setBlockState(student, { isBlocked: Boolean(isBlocked) });
-  }
+  const currentlyBlocked = student.isBlocked || isClassInProgress;
 
   res.json({
     success: true,
-    state: student.isBlocked ? 'block' : 'unblock',
-    blockedUntil: student.blockedUntil,
+    state: currentlyBlocked ? 'block' : 'unblock',
+    isBlocked: currentlyBlocked,
+    blockedUntil: currentlyBlocked ? (activeSession ? activeSession.endTime : student.blockedUntil) : null,
+    className: activeSession && activeSession.classId ? activeSession.classId.name : null,
+    room: activeSession && activeSession.classId ? activeSession.classId.room : null,
     policy: 'CROSS_PLATFORM_STRICT_LOCK',
     supportedOs: ['Windows OS', 'Android OS', 'iOS / iPadOS', 'macOS', 'Linux'],
     androidPolicy: {
@@ -133,7 +123,6 @@ const reportStatus = asyncHandler(async (req, res) => {
     ],
     blockedApps: '*',
     message: 'All Windows desktop & Android mobile applications are strictly locked. Only Phone Calls are allowed.',
-    ...activeSessionInfo,
   });
 });
 

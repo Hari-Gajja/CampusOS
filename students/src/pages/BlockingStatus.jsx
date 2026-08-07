@@ -34,7 +34,7 @@ export default function BlockingStatus() {
     try {
       setChecking(true);
       setError(null);
-      const res = await api.post('/blocking/status', { isBlocked: false });
+      const res = await api.get('/blocking/status');
       if (res?.data) {
         setStatus({
           isBlocked: res.data.state === 'block',
