@@ -131,7 +131,27 @@ async function processCheckIn({ nfcUid, deviceId, device }, { now = new Date() }
   const normalized = normalizeNfcUid(nfcUid);
   const uidRegex = new RegExp(`^${normalized}$`, 'i');
 
-  const student = await Student.findOne({ nfcCardUid: uidRegex }).populate('userId');
+  // 1. Look up student by nfcCardUid directly on Student model
+  let student = await Student.findOne({ nfcCardUid: uidRegex }).populate('userId');
+
+  // 2. Fallback: Look up user by nfcCardUid on User model
+  if (!student) {
+    const User = require('../models/User');
+    const user = await User.findOne({ nfcCardUid: uidRegex });
+    if (user) {
+      student = await Student.findOne({ userId: user._id }).populate('userId');
+      if (!student) {
+        student = await Student.create({
+          userId: user._id,
+          registrationNumber: `REG-${user._id.toString().slice(-6).toUpperCase()}`,
+          nfcCardUid: normalized,
+          btechYear: 'B.Tech 1st Year',
+        });
+        student = await Student.findById(student._id).populate('userId');
+      }
+    }
+  }
+
   if (!student) {
     throw new ApiError(404, 'No student is linked to this NFC card', 'STUDENT_NOT_FOUND');
   }
