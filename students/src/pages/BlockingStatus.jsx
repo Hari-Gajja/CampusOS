@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import api from '../services/api';
 import LoadingSpinner from '../components/LoadingSpinner';
 import ErrorAlert from '../components/ErrorAlert';
-import { Lock, Unlock, ShieldAlert, Smartphone, Clock, RefreshCw, CheckCircle2 } from 'lucide-react';
+import { Lock, Unlock, ShieldAlert, Smartphone, Clock, RefreshCw, CheckCircle2, PhoneCall, Ban, AlertCircle } from 'lucide-react';
 import { formatTime } from '../utils/helpers';
 
 export default function BlockingStatus() {
@@ -14,6 +14,13 @@ export default function BlockingStatus() {
     blockedUntil: null,
     className: null,
     room: null,
+    allowedApps: [
+      'com.google.android.dialer',
+      'com.android.phone',
+      'com.samsung.android.dialer',
+      'com.apple.mobilephone',
+    ],
+    blockedApps: '*',
   });
 
   useEffect(() => {
@@ -31,6 +38,13 @@ export default function BlockingStatus() {
           blockedUntil: res.data.blockedUntil,
           className: res.data.className || null,
           room: res.data.room || null,
+          allowedApps: res.data.allowedApps || [
+            'com.google.android.dialer',
+            'com.android.phone',
+            'com.samsung.android.dialer',
+            'com.apple.mobilephone',
+          ],
+          blockedApps: res.data.blockedApps || '*',
         });
       }
     } catch (err) {
@@ -47,8 +61,8 @@ export default function BlockingStatus() {
     <div className="max-w-3xl space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-white">Device Blocking Status</h1>
-          <p className="text-slate-400 text-sm mt-1">Smart classroom automatic distraction barrier state</p>
+          <h1 className="text-2xl font-bold text-white">Device & App Blocking Status</h1>
+          <p className="text-slate-400 text-sm mt-1">Classroom distraction shield — All apps locked except Phone Calls</p>
         </div>
 
         <button
@@ -57,7 +71,7 @@ export default function BlockingStatus() {
           className="px-4 py-2 rounded-xl bg-slate-900 border border-slate-800 text-slate-300 hover:text-white hover:bg-slate-800 text-xs font-semibold flex items-center gap-2 transition-colors disabled:opacity-50"
         >
           <RefreshCw className={`w-4 h-4 ${checking ? 'animate-spin' : ''}`} />
-          <span>Sync Status</span>
+          <span>Sync Device Status</span>
         </button>
       </div>
 
@@ -80,9 +94,9 @@ export default function BlockingStatus() {
             }`}
           >
             {status.isBlocked ? (
-              <Lock className="w-8 h-8 animate-bounce" />
+              <Lock className="w-8 h-8 animate-bounce text-rose-400" />
             ) : (
-              <Unlock className="w-8 h-8" />
+              <Unlock className="w-8 h-8 text-emerald-400" />
             )}
           </div>
 
@@ -95,35 +109,62 @@ export default function BlockingStatus() {
                     : 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
                 }`}
               >
-                {status.isBlocked ? 'Device Locked' : 'Device Active / Unlocked'}
+                {status.isBlocked ? 'STRICT APP LOCKDOWN ACTIVE' : 'Device Active / Unlocked'}
               </span>
             </div>
             <h2 className="text-xl font-bold text-white mt-2">
               {status.isBlocked
-                ? `Your phone is locked for ${status.className} until ${formatTime(status.blockedUntil)}.`
+                ? `All mobile applications blocked for ${status.className || 'Lecture'} until ${formatTime(status.blockedUntil)}.`
                 : 'No active class locking policies currently enforced.'}
             </h2>
           </div>
         </div>
 
         {status.isBlocked && (
-          <div className="p-4 rounded-2xl bg-slate-900/80 border border-slate-800 space-y-3">
-            <div className="flex items-center justify-between text-xs text-slate-300">
-              <div className="flex items-center gap-2">
-                <Clock className="w-4 h-4 text-rose-400" />
-                <span>Locked Until:</span>
+          <div className="space-y-4">
+            <div className="p-4 rounded-2xl bg-slate-900/90 border border-slate-800 space-y-3">
+              <div className="flex items-center justify-between text-xs text-slate-300">
+                <div className="flex items-center gap-2">
+                  <Clock className="w-4 h-4 text-rose-400" />
+                  <span>Locked Until:</span>
+                </div>
+                <span className="font-mono font-bold text-rose-300 text-sm">
+                  {formatTime(status.blockedUntil)}
+                </span>
               </div>
-              <span className="font-mono font-bold text-rose-300 text-sm">
-                {formatTime(status.blockedUntil)}
-              </span>
+
+              <div className="flex items-center justify-between text-xs text-slate-300">
+                <div className="flex items-center gap-2">
+                  <Smartphone className="w-4 h-4 text-slate-400" />
+                  <span>Classroom:</span>
+                </div>
+                <span className="font-semibold text-white">{status.room || 'Lecture Hall'}</span>
+              </div>
             </div>
 
-            <div className="flex items-center justify-between text-xs text-slate-300">
-              <div className="flex items-center gap-2">
-                <Smartphone className="w-4 h-4 text-slate-400" />
-                <span>Classroom:</span>
+            {/* App Lock & Whitelist Rules */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              {/* Blocked Apps Rule */}
+              <div className="p-4 rounded-2xl bg-rose-500/10 border border-rose-500/20 space-y-2">
+                <div className="flex items-center gap-2 text-rose-400 font-bold text-xs uppercase tracking-wider">
+                  <Ban className="w-4 h-4 text-rose-400" />
+                  <span>Blocked Applications</span>
+                </div>
+                <p className="text-slate-300 text-xs leading-relaxed">
+                  🚫 <strong>All third-party apps locked</strong>: Social Media (Instagram, WhatsApp, TikTok), Games, Web Browsers, YouTube, and Streaming services.
+                </p>
               </div>
-              <span className="font-semibold text-white">{status.room}</span>
+
+              {/* Whitelisted App (Phone Calls Only) */}
+              <div className="p-4 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 space-y-2">
+                <div className="flex items-center gap-2 text-emerald-400 font-bold text-xs uppercase tracking-wider">
+                  <PhoneCall className="w-4 h-4 text-emerald-400 animate-pulse" />
+                  <span>Whitelisted App</span>
+                </div>
+                <p className="text-slate-300 text-xs leading-relaxed">
+                  📞 <strong>Phone Calls App (`Phone Dialer`)</strong>: Whitelisted and accessible for making and receiving emergency phone calls at any time.
+                </p>
+              </div>
             </div>
           </div>
         )}
@@ -133,19 +174,19 @@ export default function BlockingStatus() {
       <div className="p-6 rounded-3xl glass-panel border border-slate-800 space-y-4">
         <h3 className="text-base font-bold text-white flex items-center gap-2">
           <ShieldAlert className="w-5 h-5 text-indigo-400" />
-          How Phone Blocking Works
+          App Blocking Rules & FCM Enforcement
         </h3>
         <ul className="space-y-3 text-xs text-slate-400 leading-relaxed">
           <li className="flex items-start gap-2">
             <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
             <span>
-              When you scan your NFC student card at the door reader, the system validates your on-time arrival and sends an encrypted lock command via Firebase Cloud Messaging (FCM).
+              When you scan your NFC student card at the door reader, the system validates your on-time arrival and sends an encrypted FCM push notification to your phone.
             </span>
           </li>
           <li className="flex items-start gap-2">
             <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
             <span>
-              Non-essential apps and notifications are temporarily silenced for the duration of the lecture to maximize engagement.
+              The CampusOS Android Companion app activates <strong>Strict Mode</strong>, blocking all applications except the default Phone Dialing application.
             </span>
           </li>
           <li className="flex items-start gap-2">

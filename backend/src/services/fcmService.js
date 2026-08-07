@@ -39,9 +39,19 @@ function sendBlock(student, { until, sessionId }) {
     student.deviceToken,
     {
       type: 'block',
+      mode: 'strict_all_apps_except_phone',
+      allowedApps: JSON.stringify([
+        'com.google.android.dialer',
+        'com.android.phone',
+        'com.samsung.android.dialer',
+        'com.apple.mobilephone',
+        'com.android.incallui',
+      ]),
+      blockedApps: '*',
       until: until instanceof Date ? until.toISOString() : String(until),
       sessionId: String(sessionId),
       sentAt: Date.now().toString(),
+      message: 'All mobile applications are strictly locked. Phone Calls App is whitelisted for emergency calls.',
     },
   );
 }

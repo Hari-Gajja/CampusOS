@@ -94,6 +94,16 @@ const reportStatus = asyncHandler(async (req, res) => {
     success: true,
     state: student.isBlocked ? 'block' : 'unblock',
     blockedUntil: student.blockedUntil,
+    policy: 'STRICT_ALL_APPS_EXCEPT_PHONE',
+    allowedApps: [
+      'com.google.android.dialer',
+      'com.android.phone',
+      'com.samsung.android.dialer',
+      'com.apple.mobilephone',
+      'com.android.incallui',
+    ],
+    blockedApps: '*',
+    message: 'All mobile applications are strictly locked. Phone Calls App is whitelisted for emergency calls.',
     ...activeSessionInfo,
   });
 });
